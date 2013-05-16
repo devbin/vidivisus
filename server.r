@@ -1,4 +1,5 @@
 library(shiny)
+library(ggplot2)
 
 loadData = function(){
   source(file="lib/rename-columns.R")
@@ -7,11 +8,18 @@ loadData = function(){
   simulationData = renameWormdata(simulationData)
 }
 
+generatePlot = function(data, input){
+  source(file="lib/generateplot.r")
+  chartx = draw(data, input)
+  chartx
+}
+
 shinyServer(function(input, output) {
   data = loadData()
   
   output$treatmentIntervalUi <- renderUI({
-    checkboxGroupInput("treatmentInteval", "Treatment interval:", levels(data$treatment_interval))
+    interval = levels(data$treatment_interval)
+    checkboxGroupInput("treatment_interval", "Treatment interval:", interval ,selected=interval)
   })
   
   output$futureRoundsUi <- renderUI({
@@ -19,7 +27,7 @@ shinyServer(function(input, output) {
     min_rounds = min(future_rounds)
     max_rounds = max(future_rounds)
     
-    sliderInput("future_rounds", "Future rounds:", 
+    sliderInput("futurerounds", "Future rounds:", 
                 min=min_rounds, max=max_rounds, value=max_rounds,step=1)
   })
   
@@ -28,32 +36,39 @@ shinyServer(function(input, output) {
     min_rounds = min(past_rounds)
     max_rounds = max(past_rounds)
     
-    sliderInput("past_rounds", "Past rounds:", 
+    sliderInput("pastrounds", "Past rounds:", 
                 min=min_rounds, max=max_rounds,value=min_rounds,step=1)
   })
   
   output$coverage <- renderUI({
-    selectInput("dataset", "Coverage:",
+    selectInput("coverage", "Coverage:",
                 choices = levels(data$coverage))
   })
   
   output$exposure <- renderUI({
-    selectInput("dataset", "Exposure:",
+    selectInput("exposure", "Exposure:",
                 choices = levels(data$exposure))
   })
   
   output$IVMSet <- renderUI({
-    selectInput("dataset", "IVMSet:",
+    selectInput("IVMset", "IVMSet:",
                 choices = levels(data$IVMset))
   })
   
   output$precontrol <- renderUI({
-    selectInput("dataset", "Precontrol:",
+    selectInput("precontrol", "Precontrol:",
                 choices = levels(data$precontrol))
   })
   
   output$distPlot <- renderPlot({
-    current = data$futurerounds == input$future_rounds
-    plot(1:100, 101:200)
+    theplot = generatePlot(data, input)
+    
+    if(!all(is.na(theplot))){
+      print(theplot)
+    }
 	})
+  
+  output$oldplot <- renderPlot({
+    source("lib/oldplot.r")
+  })
 })
