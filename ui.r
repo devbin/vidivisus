@@ -8,7 +8,6 @@ shinyUI(pageWithSidebar(
   
   sidebarPanel(
     uiOutput("treatmentIntervalUi"),
-    uiOutput("futureRoundsUi"),
     uiOutput("pastRoundsUi"),
     uiOutput("coverage"),
     uiOutput("exposure"),
@@ -17,8 +16,6 @@ shinyUI(pageWithSidebar(
 	),
   
   mainPanel(
-    plotOutput("distPlot"),
-    plotOutput("oldplot")
-    
+    plotOutput("distPlot")
   )
 ))

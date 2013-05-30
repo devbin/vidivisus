@@ -30,7 +30,7 @@ myline=function(wormdata,interval){
 }
 
 # get data
-wormdata = read.csv("wormsimtotal.txt", sep=" ")
+wormdata = read.csv("testdata/wormsimtotal.txt", sep=" ")
 
 x = 0:80
 y = 0:80

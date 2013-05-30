@@ -17,7 +17,7 @@ getXSkip = function(x, pastrounds)
   skip
 }
 
-calculate_x = function(data, pastrounds)
+calculate_coords = function(data, pastrounds)
 {
   max_x = max(data$futurerounds) + max(data$pastrounds)
   
