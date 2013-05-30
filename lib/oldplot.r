@@ -1,3 +1,4 @@
+# filter data on "annual, semi, quarterly"
 myline=function(wormdata,interval){
   coverage = wormdata$coverage == "Coverage 50% (past) & 50% (future)"
   #cat(sprintf("<set name=\"%s\" value=\"%f\" ></set>\n", df$timeStamp, df$Price))
@@ -8,10 +9,10 @@ myline=function(wormdata,interval){
   rbr = wormdata$rbr == "Pre-control CMFL 5 mf/ss"
   set = wormdata$IVMset == "IVM assumption set 1"
   
-  annual= coverage & treatment & exposure & rbr & set & past
+  filter= coverage & treatment & exposure & rbr & set & past
   
-  xd = wormdata$futurerounds[annual]
-  yd = sort(wormdata$p_elim[annual], decreasing=FALSE)
+  xd = wormdata$futurerounds[filter]
+  yd = sort(wormdata$p_elim[filter], decreasing=FALSE)
   
   skip = 1
   if(interval == "annual"){
@@ -28,7 +29,8 @@ myline=function(wormdata,interval){
   list(xd=xd,yd=yd)
 }
 
-wormdata = read.csv("~/Documents/wormsimtotal.txt", sep=" ")
+# get data
+wormdata = read.csv("wormsimtotal.txt", sep=" ")
 
 x = 0:80
 y = 0:80

@@ -1,3 +1,11 @@
+library(ggplot2)
+loadData = function(){
+  source(file="lib/rename-columns.R")
+  
+  simulationData = read.csv("testdata/wormsimtotal.txt", sep=" ")
+  simulationData = renameWormdata(simulationData)
+}
+
 plotdata = function(data, input)
 { 
   filter = NA
@@ -22,22 +30,10 @@ plotdata = function(data, input)
     filterd = subset(data, filter_pastrounds)
     
     dataframe_pastrounds = rbind(dataframe_pastrounds, filterd)
-    dataframe_pastrounds$treatment_interval = "Past rounds"
   }
   
   filter_futurerounds = filter & data$pastrounds == pastrounds
   dataframe_futurerounds = subset(data, filter_futurerounds)
   
   plotdata = rbind(dataframe_pastrounds, dataframe_futurerounds)
-}
-
-draw = function(data, input){
-  
-  plot = NA
-  if(length(input$treatment_interval) != 0){
-    filtered = plotdata(data, input)
-    plot = ggplot(filtered, aes(x=futurerounds, y=elimination_probability, colour=treatment_interval))+ geom_line()
-  }
-  
-  plot
 }
