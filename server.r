@@ -14,6 +14,12 @@ generatePlot = function(data, input){
   chartx
 }
 
+# generateBarPlot = function(data, input) {
+#   source(file="lib/generateplot.r")
+#   chart = barplot(1:10)
+#   chart
+# }
+
 shinyServer(function(input, output) {
   data = loadData()
   
@@ -61,12 +67,21 @@ shinyServer(function(input, output) {
   })
   
   output$distPlot <- renderPlot({
-    theplot = generatePlot(data, input)
+    theplot = generatePlot(data, input)[1]
     
     if(!all(is.na(theplot))){
       print(theplot)
     }
 	})
+  
+  # BARPLOT!!!
+  output$testPlot <- renderPlot({
+    theplot = generatePlot(data, input)[2]
+    
+    if(!all(is.na(theplot))){
+      print(theplot)
+    }
+  })
   
   output$oldplot <- renderPlot({
     source("lib/oldplot.r")
