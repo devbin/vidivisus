@@ -1,24 +1,14 @@
 library(shiny)
 library(ggplot2)
 
+source(file="lib/generateplot.r")
+
 loadData = function(){
   source(file="lib/rename-columns.R")
   
   simulationData = read.csv("testdata/wormsimtotal.txt", sep=" ")
   simulationData = renameWormdata(simulationData)
 }
-
-generatePlot = function(data, input){
-  source(file="lib/generateplot.r")
-  chartx = draw(data, input)
-  chartx
-}
-
-# generateBarPlot = function(data, input) {
-#   source(file="lib/generateplot.r")
-#   chart = barplot(1:10)
-#   chart
-# }
 
 shinyServer(function(input, output) {
   data = loadData()
@@ -66,17 +56,18 @@ shinyServer(function(input, output) {
                 choices = levels(data$precontrol))
   })
   
+  # graph plot
   output$distPlot <- renderPlot({
-    theplot = generatePlot(data, input)[1]
+    theplot = generatePlot(data, input)
     
     if(!all(is.na(theplot))){
       print(theplot)
     }
 	})
   
-  # BARPLOT!!!
+  # bar plot
   output$testPlot <- renderPlot({
-    theplot = generatePlot(data, input)[2]
+    theplot = generateBarplot(data, input)
     
     if(!all(is.na(theplot))){
       print(theplot)

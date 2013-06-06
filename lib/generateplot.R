@@ -1,5 +1,4 @@
-plotdata = function(data, input)
-{ 
+plotdata = function(data, input) {
   filter = NA
   filter = data$exposure %in% input$exposure  
   filter = filter & data$precontrol %in% input$precontrol
@@ -24,7 +23,6 @@ plotdata = function(data, input)
   plotdata = rbind(dataframe_pastrounds, dataframe_futurerounds)
 }
 
-
 get_elim_expectation_x = function (data, interval) {
   sub = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))$x
   
@@ -38,9 +36,7 @@ calculateApproximateElemination = function(data) {
   rows = subset(data, data$elimination_probability %in% seq(0.988, 0.999, 0.0001))
   lvl = levels(rows$treatment_interval)
   rows = apply(lvl, 1, get_elim_expectation_x, derp=rows)
-  # View(rows)
 }
-
 
 get_elim_expectation_x2 = function(data, interval) {
   sub = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))
@@ -49,8 +45,7 @@ get_elim_expectation_x2 = function(data, interval) {
   sub = if (length(sub[!is.na(sub)]) > 0) max(sub, na.rm=T) else NULL
 }
 
-draw = function(data, input){
-  
+generatePlot = function(data, input) {
   plot = NA
   barpl = NA
   if(length(input$treatment_interval) != 0){
@@ -71,12 +66,7 @@ draw = function(data, input){
     semi      = get_elim_expectation_x(line, "semiannual")
     quarterly = get_elim_expectation_x(line, "quarterly")
     
-    elim_exp = c(annual, semi, quarterly)
-    
-    # calculateApproximateElemination(finaldata)
-    
-    barpl = c(get_elim_expectation_x2(line, "annual"), get_elim_expectation_x2(line, "semiannual"), get_elim_expectation_x2(line, "quarterly"))
-    
+    elim_exp = c(annual, semi, quarterly)    
     elim_exp_line = c("annual elimination", "semi elimination", "quarterly elimination")
     vlines = data.frame(xint=elim_exp, grp=elim_exp_line)
     vlines = vlines[!is.na(vlines$xint),] # not all scenario's reach P(elim) = 0.999 and cause warnings
@@ -94,7 +84,38 @@ draw = function(data, input){
         geom_vline(data=vlines, aes(xintercept=xint, colour=grp), linetype="longdash", size=0.4)
   }
   
-  barmax = if (is.finite(max(barpl))) max(barpl) else 20
-  # View(barmax)
-  list(plot, barplot(barpl, ylim=c(0, barmax), xpd=FALSE))
+  plot
+}
+
+generateBarplot = function(data, input) {
+  plot = NA
+  if(length(input$treatment_interval) != 0){
+    filtered = plotdata(data, input)
+    source("lib//calculate_coords.R")
+  
+    finaldata = calculate_coords(filtered, input$pastrounds)
+    lim_x=max(finaldata$x)
+    lim_y=max(finaldata$y)
+    
+    begin_x = 2013 - max(finaldata$pastrounds)
+    end_x = 2013 + max(finaldata$futurerounds)
+    begin_y = 0
+    end_y = 100
+    
+    line      = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
+    
+    # elim_exp = c(annual, semi, quarterly)
+    
+    # calculateApproximateElemination(finaldata)
+    
+    plot = c(get_elim_expectation_x2(line, "annual"), get_elim_expectation_x2(line, "semiannual"), get_elim_expectation_x2(line, "quarterly"))
+    names(plot) <- plot # c("annual", "semiannual", "quarterly")
+
+    
+    barplot(plot, xlab="Years from now")
+    # legend("topright", plot, fill=colors, inset=inset)
+    # plot = ggplot(finaldata, aes(plot)) + geom_bar()
+  }
+  
+  plot
 }
