@@ -1,6 +1,12 @@
 library(shiny)
 library(ggplot2)
 
+# deactivate jav_home
+if(Sys.getenv("JAVA_HOME") != "")
+  Sys.setenv(Java_HOME="")
+
+library(rJava)
+
 source(file="lib/generateplot.r")
 
 loadData = function(){
@@ -56,6 +62,7 @@ shinyServer(function(input, output) {
                 choices = levels(data$precontrol))
   })
   
+  
   # graph plot
   output$distPlot <- renderPlot({
     theplot = generatePlot(data, input)
@@ -76,5 +83,11 @@ shinyServer(function(input, output) {
   
   output$oldplot <- renderPlot({
     source("lib/oldplot.r")
+  })
+  
+  # simulation plot
+  output$simPlot <- renderTable({
+    source("lib/simulate.r")
+    data <- simulate(input$sld_prm1,input$sld_prm2,input$sld_prm3)
   })
 })
