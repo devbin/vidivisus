@@ -27,7 +27,7 @@ get_elim_expectation_x2 = function(data, interval) {
   sub = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))
   
   sub = sub$x / 4 - sub$pastrounds
-  sub = if (length(sub[!is.na(sub)]) > 0) max(sub, na.rm=T) else NULL
+  sub = if (length(sub[!is.na(sub)]) > 0) max(sub, na.rm=T) else NA
 }
 
 interpolate_pelim_vline <- function(data, interval) {
@@ -155,16 +155,23 @@ generateBarplot = function(data, input) {
     begin_y = 0
     end_y = 100
     
-    line      = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
+    line  = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
     
-    plot = c(get_elim_expectation_x2(line, "annual"), get_elim_expectation_x2(line, "semiannual"), get_elim_expectation_x2(line, "quarterly"))
-    names(plot) <- plot # c("annual", "semiannual", "quarterly")
-  
-    
-    barplot(plot, xlab="Years from now")
-    # legend("topright", plot, fill=colors, inset=inset)
-    # plot = ggplot(finaldata, aes(plot)) + geom_bar()
+    plot = c(get_elim_expectation_x2(line, "annual"), 
+            get_elim_expectation_x2(line, "semiannual"), 
+            get_elim_expectation_x2(line, "quarterly"))
+
+    plot = data.frame(duration=plot, treatment_interval=c("annualy", "semiannualy", "quarterly"))
+    plot = plot[!is.na(plot$duration), ]
+
+    plot = ggplot(data=plot, aes(x=treatment_interval, y=duration, fill=treatment_interval, ymax=max(duration)+1)) + 
+    geom_bar(width=0.5, stat="identity") + 
+    xlab("Treatment Interval") + 
+    ylab("Duration (Years)") +
+    theme(legend.position="") +
+    # coord_flip() +
+    geom_text(aes(label=duration), color="black", vjust=-0.50)
   }
-  
+  # return(NA)
   plot
 }
