@@ -31,17 +31,35 @@ get_elim_expectation_x2 = function(data, interval) {
 }
 
 interpolate_pelim_vline <- function(data, interval) {
+  pastrounds = subset(data, treatment_interval == "Past rounds")
+  
   data = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))
   exact = subset(data, data$elimination_probability == 0.99)
   
   # if there is no exact match, interpolate one!
   if (nrow(exact) == 0) {
+    pf = subset(pastrounds, elimination_probability < 0.99)
+    pm = subset(pastrounds, elimination_probability > 0.99)
+    
     fewer = subset(data, data$elimination_probability < 0.99)
     more = subset(data, data$elimination_probability > 0.99)
     
-    # no x1y1 and/or x2y2 data available. return.
-    if ((nrow(fewer) == 0) | (nrow(more) == 0)) { 
-      return(NA) 
+    # no x1y1 and/or x2y2 data available. return.  
+    if ((nrow(fewer) == 0) | (nrow(more) == 0)) {
+      # return(NA)
+      
+      # try using pastrounds first
+      if ((nrow(pf) == 0) | (nrow(pm) == 0)) {
+        return(NA)
+      }
+      
+      if (nrow(pf) > 0) { 
+        fewer = pf
+      }
+      
+      if (nrow(pm) > 0) { 
+        more = pm
+      }
     } 
     
     # get closest P(elim)
@@ -58,6 +76,10 @@ interpolate_pelim_vline <- function(data, interval) {
     dy = (more$elimination_probability * 100) - (fewer$elimination_probability * 100)
     sy = 99
     sx = fewer$x + ((dx/dy) * (sy - fewer$elimination_probability * 100))
+    
+    # dy = (more$y * 100) - (fewer$y * 100)
+    # sy = 99
+    # sx = fewer$x + ((dx/dy) * (sy - fewer$y * 100))
     
     exact = sx
   }
@@ -84,15 +106,9 @@ generatePlot = function(data, input) {
     begin_y = 0
     end_y = 100
     
-    # line      = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
-    # annual    = get_elim_expectation_x(line, "annual")
-    # semi      = get_elim_expectation_x(line, "semiannual")
-    # quarterly = get_elim_expectation_x(line, "quarterly")
-    
     annual    = interpolate_pelim_vline(finaldata, "annual")
     semi      = interpolate_pelim_vline(finaldata, "semiannual")
     quarterly = interpolate_pelim_vline(finaldata, "quarterly")
-    
     
     elim_exp = c(annual, semi, quarterly)    
     elim_exp_line = c("annual elimination", "semi elimination", "quarterly elimination")
@@ -102,14 +118,23 @@ generatePlot = function(data, input) {
     hlines = data.frame(yint=c(
       lim_y/end_y * 99, 
       lim_y/end_y * 95, 
-      lim_y/end_y * 90))
+      lim_y/end_y * 90)
+    )
+    
+    # fill with NA's for equal length (redmine issue #25)
+    lim_x_seq = seq(0, lim_x, 8)
+    end_x_seq = seq(begin_x, end_x, 2)
+    lim_x_seq = c(lim_x_seq, rep.int(NA, length(end_x_seq) - length(lim_x_seq)))
     
     plot = ggplot(finaldata, aes(x=x, y=y, colour=treatment_interval)) + geom_line() +
-        scale_x_discrete(breaks=seq(0 , lim_x, 8), labels=seq(begin_x, end_x, 2)) +
+        scale_x_discrete(breaks=lim_x_seq, labels=end_x_seq) +
         scale_y_discrete(breaks=seq(0 , lim_y, lim_y/end_y*5), labels=seq(begin_y, end_y, 5)) +
         xlab("Years") + ylab("Elimination probability") + 
-        geom_hline(data=hlines, aes(yintercept=yint), colour="darkgray", linetype="dashed", size=0.4) +
-        geom_vline(data=vlines, aes(xintercept=xint, colour=grp), linetype="longdash", size=0.4)
+        geom_hline(data=hlines, aes(yintercept=yint), colour="darkgray", linetype="dashed", size=0.4)
+                
+    if (nrow(vlines) > 0) {
+      plot = plot + geom_vline(data=vlines, aes(xintercept=xint, colour=grp), linetype="longdash", size=0.4)
+    }
   }
   
   plot
@@ -131,10 +156,6 @@ generateBarplot = function(data, input) {
     end_y = 100
     
     line      = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
-    
-    # elim_exp = c(annual, semi, quarterly)
-    
-    # calculateApproximateElemination(finaldata)
     
     plot = c(get_elim_expectation_x2(line, "annual"), get_elim_expectation_x2(line, "semiannual"), get_elim_expectation_x2(line, "quarterly"))
     names(plot) <- plot # c("annual", "semiannual", "quarterly")
