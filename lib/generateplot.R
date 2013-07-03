@@ -33,33 +33,17 @@ get_elim_expectation_x2 = function(data, interval) {
 interpolate_pelim_vline <- function(data, interval) {
   pastrounds = subset(data, treatment_interval == "Past rounds")
   
-  data = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))
+  data = subset(data, data$treatment_interval %in% c(paste(c("Future", interval, "treatment"), collapse=' '), "Past rounds"))
   exact = subset(data, data$elimination_probability == 0.99)
   
   # if there is no exact match, interpolate one!
-  if (nrow(exact) == 0) {
-    pf = subset(pastrounds, elimination_probability < 0.99)
-    pm = subset(pastrounds, elimination_probability > 0.99)
-    
+  if (nrow(exact) == 0) {    
     fewer = subset(data, data$elimination_probability < 0.99)
     more = subset(data, data$elimination_probability > 0.99)
     
     # no x1y1 and/or x2y2 data available. return.  
     if ((nrow(fewer) == 0) | (nrow(more) == 0)) {
-      # return(NA)
-      
-      # try using pastrounds first
-      if ((nrow(pf) == 0) | (nrow(pm) == 0)) {
-        return(NA)
-      }
-      
-      if (nrow(pf) > 0) { 
-        fewer = pf
-      }
-      
-      if (nrow(pm) > 0) { 
-        more = pm
-      }
+      return(NA)
     } 
     
     # get closest P(elim)
@@ -68,8 +52,12 @@ interpolate_pelim_vline <- function(data, interval) {
     
     # next, get closest future rounds (sometimes we have more results so 
     # lets use futurerounds to get only the closest one)
-    fewer = subset(fewer, fewer$futurerounds == max(fewer$futurerounds))
-    more = subset(more, more$futurerounds == min(more$futurerounds))
+    # -
+    # also, use [1, ] for selecting the first record available after that, since there
+    # might be 2 records when future and past round both yield a result. 
+    # It doesn't matter which one is taken so take [1, ] as here there is at least 1 result
+    fewer = subset(fewer, fewer$futurerounds == max(fewer$futurerounds))[1, ]
+    more = subset(more, more$futurerounds == min(more$futurerounds))[1, ]
     
     # interpolate
     dx = more$x - fewer$x
@@ -77,15 +65,11 @@ interpolate_pelim_vline <- function(data, interval) {
     sy = 99
     sx = fewer$x + ((dx/dy) * (sy - fewer$elimination_probability * 100))
     
-    # dy = (more$y * 100) - (fewer$y * 100)
-    # sy = 99
-    # sx = fewer$x + ((dx/dy) * (sy - fewer$y * 100))
-    
     exact = sx
   }
   else {
     # exact match, get the x!
-    exact = exact$x
+    exact = exact[1, ]$x
   }
   exact
 }
@@ -100,11 +84,12 @@ generatePlot = function(data, input) {
     finaldata = calculate_coords(filtered, input$pastrounds)
     lim_x=max(finaldata$x)
     lim_y=max(finaldata$y)
-    
     begin_x = 2013 - max(finaldata$pastrounds)
     end_x = 2013 + max(finaldata$futurerounds)
     begin_y = 0
     end_y = 100
+    
+    treatment_intervals = levels(factor(finaldata$treatment_interval))
     
     annual    = interpolate_pelim_vline(finaldata, "annual")
     semi      = interpolate_pelim_vline(finaldata, "semiannual")
@@ -112,8 +97,12 @@ generatePlot = function(data, input) {
     
     elim_exp = c(annual, semi, quarterly)    
     elim_exp_line = c("annual elimination", "semi elimination", "quarterly elimination")
-    vlines = data.frame(xint=elim_exp, grp=elim_exp_line)
-    vlines = vlines[!is.na(vlines$xint),] # not all scenario's reach P(elim) = 0.999 and cause warnings
+    # used to remove vlines that are not in checked treatments
+    eqnames = c("Future annual treatment", "Future semiannual treatment", "Future quarterly treatment")
+    vlines = data.frame(xint=elim_exp, grp=elim_exp_line, eqname=eqnames)
+    # not all scenario's reach P(elim) = 0.99. Remove the NA warning
+    # dont show P(elim) vlines for unchecked treatments (occurs when using pastrounds for interpolation)
+    vlines = vlines[!is.na(vlines$xint) & vlines$eqname %in% treatment_intervals[treatment_intervals != "Past rounds"], ]
     
     hlines = data.frame(yint=c(
       lim_y/end_y * 99, 
