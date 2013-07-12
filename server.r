@@ -1,5 +1,6 @@
 library(shiny)
 library(ggplot2)
+library(plyr)
 
 # deactivate jav_home
 if(Sys.getenv("JAVA_HOME") != "")
@@ -21,6 +22,19 @@ shinyServer(function(input, output) {
   
   output$treatmentIntervalUi <- renderUI({
     interval = levels(data$treatment_interval)
+
+    # what we get:  annual   , quarterly , semi
+    # what we want: quartery , semi      , annual
+    # use a vector with the order in which things should be reordered
+    treatments_in_order = c(3, 1, 2)
+    df <- data.frame(l=interval, sorter=treatments_in_order)
+    df = df[with(df, order(treatments_in_order)), ]
+    interval = as.character(df$l)
+		
+		# alternative method, but I *think* it is slower
+		# treatments_in_order = data.frame(lbl=c("Future quarterly treatment", "Future semiannual treatment", "Future annual treatment"))
+		# interval = join(x=data.frame(lbl=interval), y=treatments_in_order, type="right")$lbl
+		
     checkboxGroupInput("treatment_interval", "Treatment interval:", interval ,selected=interval)
   })
   

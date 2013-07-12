@@ -23,25 +23,16 @@ plotdata = function(data, input) {
   plotdata = rbind(dataframe_pastrounds, dataframe_futurerounds)
 }
 
-get_elim_expectation_x2 = function(data, interval) {
-  sub = subset(data, data$treatment_interval == paste(c("Future", interval, "treatment"), collapse=' '))
-  
-  sub = sub$x / 4 - sub$pastrounds
-  sub = if (length(sub[!is.na(sub)]) > 0) max(sub, na.rm=T) else NA
-}
-
-interpolate_pelim_vline <- function(data, interval) {
-  pastrounds = subset(data, treatment_interval == "Past rounds")
-  
+interpolation_records <- function(data, interval) {
   data = subset(data, data$treatment_interval %in% c(paste(c("Future", interval, "treatment"), collapse=' '), "Past rounds"))
   exact = subset(data, data$elimination_probability == 0.99)
-  
+  result = data.frame()
   # if there is no exact match, interpolate one!
-  if (nrow(exact) == 0) {    
+  if (nrow(exact) == 0) {
     fewer = subset(data, data$elimination_probability < 0.99)
     more = subset(data, data$elimination_probability > 0.99)
     
-    # no x1y1 and/or x2y2 data available. return.  
+    # no x1y1 and/or x2y2 data available. return.
     if ((nrow(fewer) == 0) | (nrow(more) == 0)) {
       return(NA)
     } 
@@ -59,24 +50,60 @@ interpolate_pelim_vline <- function(data, interval) {
     fewer = subset(fewer, fewer$futurerounds == max(fewer$futurerounds))[1, ]
     more = subset(more, more$futurerounds == min(more$futurerounds))[1, ]
     
-    # interpolate
-    dx = more$x - fewer$x
-    dy = (more$elimination_probability * 100) - (fewer$elimination_probability * 100)
-    sy = 99
-    sx = fewer$x + ((dx/dy) * (sy - fewer$elimination_probability * 100))
-    
-    exact = sx
+    result = rbind(result, fewer)
+    result = rbind(result, more)
   }
   else {
     # exact match, get the x!
-    exact = exact[1, ]$x
+    result = rbind(result, exact)
   }
-  exact
+  
+  result
+}
+
+interpolate_barplot <- function(data, interval) {
+  r = interpolation_records(data, interval)
+  if (class(r) != 'data.frame') {
+    return(NA)
+  }
+  
+  sx = NA
+  if (nrow(r) == 2) {
+    dx = r[2, ]$x - r[1, ]$x
+    dy = (r[2, ]$elimination_probability * 100) - (r[1, ]$elimination_probability * 100)
+    sy = 99
+    sx = r[1, ]$x + ((dx/dy) * (sy - (r[1, ]$elimination_probability * 100)))
+    
+    sx = sx / 4 - r[2, ]$pastrounds
+  }
+  else {
+    sx = r[1, ]$x / 4 - r[1, ]$pastrounds
+  }
+  round(sx, digits=3)
+}
+
+interpolate_plot_vline <- function(data, interval) {
+  r = interpolation_records(data, interval)
+  
+  if (class(r) != 'data.frame') {
+    return(NA)
+  }
+  
+  sx = NA
+  if (nrow(r) == 2) {
+    dx = r[2, ]$x - r[1, ]$x
+    dy = (r[2, ]$elimination_probability * 100) - (r[1, ]$elimination_probability * 100)
+    sy = 99
+    sx = r[1, ]$x + ((dx/dy) * (sy - r[1, ]$elimination_probability * 100))
+  }
+  else {
+    sx = r[1, ]$x
+  }
+  sx
 }
 
 generatePlot = function(data, input) {
   plot = NA
-  barpl = NA
   if(length(input$treatment_interval) != 0){
     filtered = plotdata(data, input)
     source("lib//calculate_coords.R")
@@ -91,15 +118,16 @@ generatePlot = function(data, input) {
     
     treatment_intervals = levels(factor(finaldata$treatment_interval))
     
-    annual    = interpolate_pelim_vline(finaldata, "annual")
-    semi      = interpolate_pelim_vline(finaldata, "semiannual")
-    quarterly = interpolate_pelim_vline(finaldata, "quarterly")
+    annual    = interpolate_plot_vline(finaldata, "annual")
+    semi      = interpolate_plot_vline(finaldata, "semiannual")
+    quarterly = interpolate_plot_vline(finaldata, "quarterly")
     
-    elim_exp = c(annual, semi, quarterly)    
-    elim_exp_line = c("annual elimination", "semi elimination", "quarterly elimination")
+    elim_exp = c(quarterly, semi, annual) 
+		 elim_exp_line = c("quarterly elimination", "semi elimination", "annual elimination")
     # used to remove vlines that are not in checked treatments
-    eqnames = c("Future annual treatment", "Future semiannual treatment", "Future quarterly treatment")
-    vlines = data.frame(xint=elim_exp, grp=elim_exp_line, eqname=eqnames)
+    eqnames = c("Future quarterly treatment", "Future semiannual treatment", "Future annual treatment")
+		
+		vlines = data.frame(xint=elim_exp, grp=elim_exp_line, eqname=eqnames)
     # not all scenario's reach P(elim) = 0.99. Remove the NA warning
     # dont show P(elim) vlines for unchecked treatments (occurs when using pastrounds for interpolation)
     vlines = vlines[!is.na(vlines$xint) & vlines$eqname %in% treatment_intervals[treatment_intervals != "Past rounds"], ]
@@ -134,26 +162,19 @@ generateBarplot = function(data, input) {
   if(length(input$treatment_interval) != 0){
     filtered = plotdata(data, input)
     source("lib//calculate_coords.R")
-  
+    
     finaldata = calculate_coords(filtered, input$pastrounds)
-    lim_x=max(finaldata$x)
-    lim_y=max(finaldata$y)
     
-    begin_x = 2013 - max(finaldata$pastrounds)
-    end_x = 2013 + max(finaldata$futurerounds)
-    begin_y = 0
-    end_y = 100
+    plot = c(interpolate_barplot(finaldata, "quarterly"),
+    interpolate_barplot(finaldata, "semiannual"),
+    interpolate_barplot(finaldata, "annual"))
     
-    line  = subset(finaldata, finaldata$elimination_probability %in% seq(0.988, 0.999, 0.0001))
-    
-    plot = c(get_elim_expectation_x2(line, "annual"), 
-            get_elim_expectation_x2(line, "semiannual"), 
-            get_elim_expectation_x2(line, "quarterly"))
-
-    plot = data.frame(duration=plot, treatment_interval=c("annualy", "semiannualy", "quarterly"))
+    plot = data.frame(duration=plot, treatment_interval=c("quarterly", "semiannualy", "annualy"))
+		plot$treatment_interval <- factor(plot$treatment_interval,levels=plot$treatment_interval) # use factor to keep the same order
     plot = plot[!is.na(plot$duration), ]
-
-    plot = ggplot(data=plot, aes(x=treatment_interval, y=duration, fill=treatment_interval, ymax=max(duration)+1)) + 
+		
+    plot = ggplot(data=plot, aes(x=reorder(treatment_interval, duration), y=duration, fill=treatment_interval, ymin=-1, ymax=max(duration)+1)) + 
+    # plot = ggplot(data=plot, aes(x=treatment_interval, y=duration, order=NA, fill=treatment_interval, ymin=-1, ymax=max(duration)+1)) + 
     geom_bar(width=0.5, stat="identity") + 
     xlab("Treatment Interval") + 
     ylab("Duration (Years)") +
@@ -161,6 +182,5 @@ generateBarplot = function(data, input) {
     # coord_flip() +
     geom_text(aes(label=duration), color="black", vjust=-0.50)
   }
-  # return(NA)
   plot
 }
