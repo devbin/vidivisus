@@ -23,30 +23,37 @@ plotdata = function(data, input) {
   plotdata = rbind(dataframe_pastrounds, dataframe_futurerounds)
 }
 
+# fetch the records needed for interpolation
+# lets call x1y1 IV1 and x2y2 IV2.
+# [ max(IV1) | IV1 <- data, IV1_pelim < 0.99 ]
+# [ min(IV2) | IV2 <- data, IV2_pelim > 0.99 ]
 interpolation_records <- function(data, interval) {
+  # sometimes there are no future rounds, so take past rounds too
   data = subset(data, data$treatment_interval %in% c(paste(c("Future", interval, "treatment"), collapse=' '), "Past rounds"))
+  # is there an exact match already?
   exact = subset(data, data$elimination_probability == 0.99)
   result = data.frame()
-  # if there is no exact match, interpolate one!
+
+  # if there is no exact match, interpolate one
   if (nrow(exact) == 0) {
-    fewer = subset(data, data$elimination_probability < 0.99)
-    more = subset(data, data$elimination_probability > 0.99)
+    fewer = subset(data, data$elimination_probability < 0.99) #IV1
+    more = subset(data, data$elimination_probability > 0.99) #IV2
     
-    # no x1y1 and/or x2y2 data available. return.
+    # no IV1 and/or IV2 data available, return.
     if ((nrow(fewer) == 0) | (nrow(more) == 0)) {
       return(NA)
     } 
     
     # get closest P(elim)
-    fewer = subset(fewer, fewer$elimination_probability == max(fewer$elimination_probability))
-    more = subset(more, more$elimination_probability == min(more$elimination_probability))
+    fewer = subset(fewer, fewer$elimination_probability == max(fewer$elimination_probability)) #IV1
+    more = subset(more, more$elimination_probability == min(more$elimination_probability)) #IV2
     
     # next, get closest future rounds (sometimes we have more results so 
     # lets use futurerounds to get only the closest one)
     # -
     # also, use [1, ] for selecting the first record available after that, since there
     # might be 2 records when future and past round both yield a result. 
-    # It doesn't matter which one is taken so take [1, ] as here there is at least 1 result
+    # It doesn't matter which one is taken so take [1, ] as there is at least 1 result
     fewer = subset(fewer, fewer$futurerounds == max(fewer$futurerounds))[1, ]
     more = subset(more, more$futurerounds == min(more$futurerounds))[1, ]
     
@@ -69,16 +76,21 @@ interpolate_barplot <- function(data, interval) {
   
   sx = NA
   if (nrow(r) == 2) {
+    # normal interpolation
+    # [1, ] is IV1, [2, ] is IV2
     dx = r[2, ]$x - r[1, ]$x
     dy = (r[2, ]$elimination_probability * 100) - (r[1, ]$elimination_probability * 100)
     sy = 99
     sx = r[1, ]$x + ((dx/dy) * (sy - (r[1, ]$elimination_probability * 100)))
     
-    sx = sx / 4 - r[2, ]$pastrounds
+    # scale
+    sx = sx / 4 - r[1, ]$pastrounds
   }
   else {
+    # no interpolation, just scale
     sx = r[1, ]$x / 4 - r[1, ]$pastrounds
   }
+  # sensible rounding
   round(sx, digits=3)
 }
 
@@ -91,6 +103,8 @@ interpolate_plot_vline <- function(data, interval) {
   
   sx = NA
   if (nrow(r) == 2) {
+    # normal interpolation
+    # [1, ] is IV1, [2, ] is IV2
     dx = r[2, ]$x - r[1, ]$x
     dy = (r[2, ]$elimination_probability * 100) - (r[1, ]$elimination_probability * 100)
     sy = 99
